@@ -1,0 +1,802 @@
+
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Supermarket Price Comparison</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'DM Sans', sans-serif; }
+    .supermarket-card { transition: all 0.2s ease; }
+    .supermarket-card:hover { transform: translateY(-2px); }
+    .compare-item { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .cheapest { position: relative; }
+    .cheapest::after {
+      content: "BEST PRICE";
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #10b981;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .price-tag {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-50 overflow-auto">
+  <div id="app" class="w-full min-h-full">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 text-white py-8 px-4">
+      <div class="max-w-6xl mx-auto text-center">
+        <h1 id="main-title" class="text-3xl md:text-4xl font-bold mb-2">UK Supermarket Price Compare</h1>
+        <p id="subtitle" class="text-emerald-100 text-lg">Find the best deals on everyday essentials</p>
+        <p class="text-emerald-200 text-sm mt-2">💡 Prices are indicative estimates based on typical UK retail pricing (January 2025)</p>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-8">
+      <!-- Category Filter -->
+      <div class="mb-8">
+        <div class="flex flex-wrap gap-2 justify-center">
+          <button onclick="filterCategory('all')" data-category="all" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-emerald-600 text-white">
+            All Items
+          </button>
+          <button onclick="filterCategory('dairy')" data-category="dairy" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50">
+            🥛 Dairy
+          </button>
+          <button onclick="filterCategory('bread')" data-category="bread" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50">
+            🍞 Bread & Bakery
+          </button>
+          <button onclick="filterCategory('meat')" data-category="meat" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50">
+            🥩 Meat
+          </button>
+          <button onclick="filterCategory('produce')" data-category="produce" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50">
+            🥬 Produce
+          </button>
+          <button onclick="filterCategory('household')" data-category="household" class="category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50">
+            🧴 Household
+          </button>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="mb-8">
+        <div class="max-w-md mx-auto">
+          <div class="relative">
+            <input type="text" id="search-input" placeholder="Search products..." 
+              class="w-full px-4 py-3 pl-12 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:outline-none transition-colors"
+              oninput="searchProducts(this.value)">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div id="product-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Products will be rendered here -->
+      </div>
+
+      <!-- Comparison Panel -->
+      <div id="comparison-panel" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-emerald-500 shadow-2xl p-4 z-50">
+        <div class="max-w-6xl mx-auto">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-800">🛒 Your Comparison Basket</h3>
+            <button onclick="clearComparison()" class="text-sm text-red-500 hover:text-red-700 font-medium">Clear All</button>
+          </div>
+          <div id="comparison-items" class="flex flex-wrap gap-3 mb-4">
+            <!-- Comparison items will be rendered here -->
+          </div>
+          <div id="comparison-totals" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Totals will be rendered here -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-400 py-6 px-4 text-center text-sm">
+      <p>Prices shown are indicative estimates and may vary by location and date.</p>
+      <p class="mt-1">Always check current prices at your local store or online.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Configuration
+    const defaultConfig = {
+      main_title: "UK Supermarket Price Compare",
+      subtitle_text: "Find the best deals on everyday essentials",
+      primary_color: "#059669",
+      secondary_color: "#f8fafc",
+      text_color: "#1e293b",
+      accent_color: "#10b981",
+      surface_color: "#ffffff"
+    };
+
+    let config = { ...defaultConfig };
+    let comparisonBasket = [];
+    let currentCategory = 'all';
+
+    // Supermarket data with brand colors
+    const supermarkets = {
+      tesco: { name: "Tesco", color: "#00539F", emoji: "🔵" },
+      sainsburys: { name: "Sainsbury's", color: "#F06C00", emoji: "🟠" },
+      asda: { name: "Asda", color: "#78BE20", emoji: "🟢" },
+      morrisons: { name: "Morrisons", color: "#FFD100", emoji: "🟡" },
+      aldi: { name: "Aldi", color: "#00549E", emoji: "🔷" },
+      lidl: { name: "Lidl", color: "#0050AA", emoji: "🔶" }
+    };
+
+    // Product database with realistic UK prices (January 2025 estimates)
+    // Note: These are indicative prices based on typical UK retail pricing
+    const products = [
+      {
+        id: 1,
+        name: "Semi-Skimmed Milk",
+        description: "2 pints (1.136L)",
+        category: "dairy",
+        emoji: "🥛",
+        prices: {
+          tesco: 1.35,
+          sainsburys: 1.35,
+          asda: 1.29,
+          morrisons: 1.35,
+          aldi: 1.15,
+          lidl: 1.15
+        }
+      },
+      {
+        id: 2,
+        name: "Free Range Eggs",
+        description: "Medium, 6 pack",
+        category: "dairy",
+        emoji: "🥚",
+        prices: {
+          tesco: 1.95,
+          sainsburys: 2.00,
+          asda: 1.89,
+          morrisons: 1.95,
+          aldi: 1.69,
+          lidl: 1.65
+        }
+      },
+      {
+        id: 3,
+        name: "Cheddar Cheese",
+        description: "Mature, 400g block",
+        category: "dairy",
+        emoji: "🧀",
+        prices: {
+          tesco: 3.50,
+          sainsburys: 3.65,
+          asda: 3.25,
+          morrisons: 3.50,
+          aldi: 2.89,
+          lidl: 2.85
+        }
+      },
+      {
+        id: 4,
+        name: "Salted Butter",
+        description: "250g block",
+        category: "dairy",
+        emoji: "🧈",
+        prices: {
+          tesco: 2.15,
+          sainsburys: 2.20,
+          asda: 2.00,
+          morrisons: 2.15,
+          aldi: 1.85,
+          lidl: 1.79
+        }
+      },
+      {
+        id: 5,
+        name: "White Sliced Bread",
+        description: "800g loaf",
+        category: "bread",
+        emoji: "🍞",
+        prices: {
+          tesco: 1.15,
+          sainsburys: 1.20,
+          asda: 1.05,
+          morrisons: 1.15,
+          aldi: 0.85,
+          lidl: 0.79
+        }
+      },
+      {
+        id: 6,
+        name: "Wholemeal Bread",
+        description: "800g loaf",
+        category: "bread",
+        emoji: "🥖",
+        prices: {
+          tesco: 1.35,
+          sainsburys: 1.40,
+          asda: 1.25,
+          morrisons: 1.35,
+          aldi: 0.99,
+          lidl: 0.95
+        }
+      },
+      {
+        id: 7,
+        name: "Croissants",
+        description: "4 pack",
+        category: "bread",
+        emoji: "🥐",
+        prices: {
+          tesco: 1.50,
+          sainsburys: 1.55,
+          asda: 1.40,
+          morrisons: 1.50,
+          aldi: 1.19,
+          lidl: 1.09
+        }
+      },
+      {
+        id: 8,
+        name: "Chicken Breast",
+        description: "Skinless, 500g",
+        category: "meat",
+        emoji: "🍗",
+        prices: {
+          tesco: 4.75,
+          sainsburys: 4.95,
+          asda: 4.50,
+          morrisons: 4.75,
+          aldi: 3.99,
+          lidl: 3.89
+        }
+      },
+      {
+        id: 9,
+        name: "Beef Mince",
+        description: "20% fat, 500g",
+        category: "meat",
+        emoji: "🥩",
+        prices: {
+          tesco: 3.50,
+          sainsburys: 3.65,
+          asda: 3.29,
+          morrisons: 3.50,
+          aldi: 2.99,
+          lidl: 2.89
+        }
+      },
+      {
+        id: 10,
+        name: "Bacon Rashers",
+        description: "Smoked, 300g",
+        category: "meat",
+        emoji: "🥓",
+        prices: {
+          tesco: 3.25,
+          sainsburys: 3.40,
+          asda: 3.00,
+          morrisons: 3.25,
+          aldi: 2.69,
+          lidl: 2.59
+        }
+      },
+      {
+        id: 11,
+        name: "Pork Sausages",
+        description: "8 pack, 454g",
+        category: "meat",
+        emoji: "🌭",
+        prices: {
+          tesco: 2.50,
+          sainsburys: 2.65,
+          asda: 2.29,
+          morrisons: 2.50,
+          aldi: 1.99,
+          lidl: 1.89
+        }
+      },
+      {
+        id: 12,
+        name: "Bananas",
+        description: "Loose, per kg",
+        category: "produce",
+        emoji: "🍌",
+        prices: {
+          tesco: 0.85,
+          sainsburys: 0.90,
+          asda: 0.80,
+          morrisons: 0.85,
+          aldi: 0.75,
+          lidl: 0.69
+        }
+      },
+      {
+        id: 13,
+        name: "Carrots",
+        description: "1kg bag",
+        category: "produce",
+        emoji: "🥕",
+        prices: {
+          tesco: 0.65,
+          sainsburys: 0.70,
+          asda: 0.59,
+          morrisons: 0.65,
+          aldi: 0.49,
+          lidl: 0.45
+        }
+      },
+      {
+        id: 14,
+        name: "Potatoes",
+        description: "White, 2.5kg",
+        category: "produce",
+        emoji: "🥔",
+        prices: {
+          tesco: 1.75,
+          sainsburys: 1.85,
+          asda: 1.65,
+          morrisons: 1.75,
+          aldi: 1.49,
+          lidl: 1.39
+        }
+      },
+      {
+        id: 15,
+        name: "Onions",
+        description: "1kg bag",
+        category: "produce",
+        emoji: "🧅",
+        prices: {
+          tesco: 0.89,
+          sainsburys: 0.95,
+          asda: 0.85,
+          morrisons: 0.89,
+          aldi: 0.69,
+          lidl: 0.65
+        }
+      },
+      {
+        id: 16,
+        name: "Broccoli",
+        description: "Single head",
+        category: "produce",
+        emoji: "🥦",
+        prices: {
+          tesco: 0.79,
+          sainsburys: 0.85,
+          asda: 0.75,
+          morrisons: 0.79,
+          aldi: 0.59,
+          lidl: 0.55
+        }
+      },
+      {
+        id: 17,
+        name: "Apples",
+        description: "Gala, 6 pack",
+        category: "produce",
+        emoji: "🍎",
+        prices: {
+          tesco: 1.89,
+          sainsburys: 1.95,
+          asda: 1.79,
+          morrisons: 1.89,
+          aldi: 1.49,
+          lidl: 1.45
+        }
+      },
+      {
+        id: 18,
+        name: "Washing Up Liquid",
+        description: "500ml",
+        category: "household",
+        emoji: "🧴",
+        prices: {
+          tesco: 1.25,
+          sainsburys: 1.30,
+          asda: 1.15,
+          morrisons: 1.25,
+          aldi: 0.89,
+          lidl: 0.85
+        }
+      },
+      {
+        id: 19,
+        name: "Toilet Roll",
+        description: "9 pack",
+        category: "household",
+        emoji: "🧻",
+        prices: {
+          tesco: 4.50,
+          sainsburys: 4.75,
+          asda: 4.25,
+          morrisons: 4.50,
+          aldi: 3.49,
+          lidl: 3.29
+        }
+      },
+      {
+        id: 20,
+        name: "Laundry Detergent",
+        description: "Liquid, 1.5L",
+        category: "household",
+        emoji: "🧺",
+        prices: {
+          tesco: 4.00,
+          sainsburys: 4.25,
+          asda: 3.75,
+          morrisons: 4.00,
+          aldi: 2.99,
+          lidl: 2.89
+        }
+      },
+      {
+        id: 21,
+        name: "Greek Yoghurt",
+        description: "500g tub",
+        category: "dairy",
+        emoji: "🥄",
+        prices: {
+          tesco: 2.00,
+          sainsburys: 2.10,
+          asda: 1.89,
+          morrisons: 2.00,
+          aldi: 1.59,
+          lidl: 1.49
+        }
+      },
+      {
+        id: 22,
+        name: "Crumpets",
+        description: "6 pack",
+        category: "bread",
+        emoji: "🫓",
+        prices: {
+          tesco: 0.85,
+          sainsburys: 0.90,
+          asda: 0.79,
+          morrisons: 0.85,
+          aldi: 0.65,
+          lidl: 0.59
+        }
+      },
+      {
+        id: 23,
+        name: "Salmon Fillets",
+        description: "2 pack, 260g",
+        category: "meat",
+        emoji: "🐟",
+        prices: {
+          tesco: 5.00,
+          sainsburys: 5.25,
+          asda: 4.75,
+          morrisons: 5.00,
+          aldi: 4.29,
+          lidl: 4.19
+        }
+      },
+      {
+        id: 24,
+        name: "Tomatoes",
+        description: "6 pack, vine",
+        category: "produce",
+        emoji: "🍅",
+        prices: {
+          tesco: 1.35,
+          sainsburys: 1.45,
+          asda: 1.25,
+          morrisons: 1.35,
+          aldi: 1.09,
+          lidl: 0.99
+        }
+      }
+    ];
+
+    // Find cheapest price for a product
+    function getCheapestStore(prices) {
+      let cheapest = { store: null, price: Infinity };
+      for (const [store, price] of Object.entries(prices)) {
+        if (price < cheapest.price) {
+          cheapest = { store, price };
+        }
+      }
+      return cheapest;
+    }
+
+    // Render product cards
+    function renderProducts(filteredProducts) {
+      const grid = document.getElementById('product-grid');
+      
+      if (filteredProducts.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full text-center py-12">
+            <span class="text-6xl mb-4 block">🔍</span>
+            <p class="text-slate-500 text-lg">No products found</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredProducts.map(product => {
+        const cheapest = getCheapestStore(product.prices);
+        const isInBasket = comparisonBasket.some(item => item.id === product.id);
+        
+        return `
+          <div class="supermarket-card bg-white rounded-2xl shadow-md overflow-hidden border border-slate-100">
+            <div class="p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-4xl">${product.emoji}</span>
+                  <div>
+                    <h3 class="font-bold text-slate-800">${product.name}</h3>
+                    <p class="text-slate-500 text-sm">${product.description}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-3 gap-2 mb-4">
+                ${Object.entries(product.prices).map(([store, price]) => {
+                  const isCheapest = store === cheapest.store;
+                  return `
+                    <div class="price-tag rounded-lg p-2 text-center ${isCheapest ? 'cheapest ring-2 ring-emerald-500' : 'bg-slate-50'}">
+                      <span class="text-xs block mb-1">${supermarkets[store].emoji} ${supermarkets[store].name}</span>
+                      <span class="font-bold ${isCheapest ? 'text-emerald-600' : 'text-slate-700'}">£${price.toFixed(2)}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              
+              <button 
+                onclick="toggleComparison(${product.id})"
+                class="w-full py-2.5 rounded-xl font-semibold transition-all ${
+                  isInBasket 
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                    : 'bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-600'
+                }"
+              >
+                ${isInBasket ? '✓ In Comparison' : '+ Add to Compare'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Filter by category
+    function filterCategory(category) {
+      currentCategory = category;
+      
+      // Update button styles
+      document.querySelectorAll('.category-btn').forEach(btn => {
+        if (btn.dataset.category === category) {
+          btn.className = 'category-btn px-4 py-2 rounded-full font-medium transition-all bg-emerald-600 text-white';
+        } else {
+          btn.className = 'category-btn px-4 py-2 rounded-full font-medium transition-all bg-white text-slate-600 hover:bg-emerald-50';
+        }
+      });
+      
+      const filtered = category === 'all' 
+        ? products 
+        : products.filter(p => p.category === category);
+      
+      renderProducts(filtered);
+    }
+
+    // Search products
+    function searchProducts(query) {
+      const searchTerm = query.toLowerCase().trim();
+      
+      let filtered = currentCategory === 'all' 
+        ? products 
+        : products.filter(p => p.category === currentCategory);
+      
+      if (searchTerm) {
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(searchTerm) || 
+          p.description.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      renderProducts(filtered);
+    }
+
+    // Toggle item in comparison basket
+    function toggleComparison(productId) {
+      const index = comparisonBasket.findIndex(item => item.id === productId);
+      
+      if (index > -1) {
+        comparisonBasket.splice(index, 1);
+      } else {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+          comparisonBasket.push(product);
+        }
+      }
+      
+      updateComparisonPanel();
+      renderProducts(
+        currentCategory === 'all' 
+          ? products 
+          : products.filter(p => p.category === currentCategory)
+      );
+    }
+
+    // Clear comparison basket
+    function clearComparison() {
+      comparisonBasket = [];
+      updateComparisonPanel();
+      renderProducts(
+        currentCategory === 'all' 
+          ? products 
+          : products.filter(p => p.category === currentCategory)
+      );
+    }
+
+    // Update comparison panel
+    function updateComparisonPanel() {
+      const panel = document.getElementById('comparison-panel');
+      const itemsContainer = document.getElementById('comparison-items');
+      const totalsContainer = document.getElementById('comparison-totals');
+      
+      if (comparisonBasket.length === 0) {
+        panel.classList.add('hidden');
+        return;
+      }
+      
+      panel.classList.remove('hidden');
+      
+      // Render items
+      itemsContainer.innerHTML = comparisonBasket.map(item => `
+        <div class="compare-item flex items-center gap-2 bg-slate-100 rounded-full px-3 py-1.5">
+          <span>${item.emoji}</span>
+          <span class="text-sm font-medium text-slate-700">${item.name}</span>
+          <button onclick="toggleComparison(${item.id})" class="text-slate-400 hover:text-red-500 ml-1">✕</button>
+        </div>
+      `).join('');
+      
+      // Calculate totals for each supermarket
+      const totals = {};
+      Object.keys(supermarkets).forEach(store => {
+        totals[store] = comparisonBasket.reduce((sum, item) => sum + item.prices[store], 0);
+      });
+      
+      // Find cheapest total
+      const cheapestTotal = Math.min(...Object.values(totals));
+      
+      // Render totals
+      const sortedTotals = Object.entries(totals).sort((a, b) => a[1] - b[1]);
+      
+      totalsContainer.innerHTML = sortedTotals.map(([store, total], index) => {
+        const isCheapest = total === cheapestTotal;
+        const savings = (Object.values(totals).reduce((a, b) => a + b, 0) / Object.keys(totals).length - total).toFixed(2);
+        
+        return `
+          <div class="rounded-xl p-4 ${isCheapest ? 'bg-emerald-50 ring-2 ring-emerald-500' : 'bg-slate-50'} ${isCheapest ? 'order-first' : ''}">
+            <div class="flex items-center gap-2 mb-2">
+              <span>${supermarkets[store].emoji}</span>
+              <span class="font-semibold text-slate-800">${supermarkets[store].name}</span>
+              ${isCheapest ? '<span class="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full">CHEAPEST</span>' : ''}
+            </div>
+            <div class="text-2xl font-bold ${isCheapest ? 'text-emerald-600' : 'text-slate-700'}">£${total.toFixed(2)}</div>
+            ${isCheapest && sortedTotals.length > 1 ? `<div class="text-xs text-emerald-600 mt-1">Save £${(sortedTotals[sortedTotals.length-1][1] - total).toFixed(2)} vs most expensive</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Element SDK implementation
+    async function onConfigChange(cfg) {
+      const title = document.getElementById('main-title');
+      const subtitle = document.getElementById('subtitle');
+      
+      if (title) {
+        title.textContent = cfg.main_title || defaultConfig.main_title;
+        title.style.fontFamily = `${cfg.font_family || 'DM Sans'}, sans-serif`;
+      }
+      
+      if (subtitle) {
+        subtitle.textContent = cfg.subtitle_text || defaultConfig.subtitle_text;
+        subtitle.style.fontFamily = `${cfg.font_family || 'DM Sans'}, sans-serif`;
+      }
+      
+      // Apply font size scaling
+      const baseSize = cfg.font_size || 16;
+      if (title) title.style.fontSize = `${baseSize * 2.25}px`;
+      if (subtitle) subtitle.style.fontSize = `${baseSize * 1.125}px`;
+    }
+
+    function mapToCapabilities(cfg) {
+      return {
+        recolorables: [
+          {
+            get: () => cfg.primary_color || defaultConfig.primary_color,
+            set: (value) => {
+              cfg.primary_color = value;
+              window.elementSdk.setConfig({ primary_color: value });
+            }
+          },
+          {
+            get: () => cfg.secondary_color || defaultConfig.secondary_color,
+            set: (value) => {
+              cfg.secondary_color = value;
+              window.elementSdk.setConfig({ secondary_color: value });
+            }
+          },
+          {
+            get: () => cfg.text_color || defaultConfig.text_color,
+            set: (value) => {
+              cfg.text_color = value;
+              window.elementSdk.setConfig({ text_color: value });
+            }
+          },
+          {
+            get: () => cfg.accent_color || defaultConfig.accent_color,
+            set: (value) => {
+              cfg.accent_color = value;
+              window.elementSdk.setConfig({ accent_color: value });
+            }
+          },
+          {
+            get: () => cfg.surface_color || defaultConfig.surface_color,
+            set: (value) => {
+              cfg.surface_color = value;
+              window.elementSdk.setConfig({ surface_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => cfg.font_family || 'DM Sans',
+          set: (value) => {
+            cfg.font_family = value;
+            window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: {
+          get: () => cfg.font_size || 16,
+          set: (value) => {
+            cfg.font_size = value;
+            window.elementSdk.setConfig({ font_size: value });
+          }
+        }
+      };
+    }
+
+    function mapToEditPanelValues(cfg) {
+      return new Map([
+        ["main_title", cfg.main_title || defaultConfig.main_title],
+        ["subtitle_text", cfg.subtitle_text || defaultConfig.subtitle_text]
+      ]);
+    }
+
+    // Initialize
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+      config = window.elementSdk.config || defaultConfig;
+    }
+
+    // Initial render
+    renderProducts(products);
+    onConfigChange(config);
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9cf812bba35494f6',t:'MTc3MTM2MDU0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
